@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AFC Teller General Chat bot</title>
+  <link rel="stylesheet" href="generalbot.css" />
+</head>
+<body>
+  <div class="chat-container">
+    <div class="chat-header">
+      <div class="header-title">🟢 AFC Teller General Chat bot</div>
+      <button class="back-btn" onclick="window.location.href='Main_page.html'">← Back</button>
+    </div>
+
+    <div class="chat-box" id="chat-box"></div>
+
+    <div class="chat-input">
+      <input type="text" id="user-input" placeholder="Type a message..." onkeypress="handleKey(event)" />
+      <button onclick="sendMessage()">➤</button>
+    </div>
+  </div>
+
+  <script src="generalbot.js"></script>
+</body>
+</html>

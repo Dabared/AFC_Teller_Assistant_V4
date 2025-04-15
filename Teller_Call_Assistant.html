@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AFC Branch Call Assistant</title>
+    <link rel="stylesheet" href="teller_call_assistant.css">
+</head>
+<body>
+    <div class="main-container">
+        <div class="header">
+            <div class="logo"> ☎ AFC Teller Call Assistant</div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="showTab('terminal', this)"> 🖥 Terminal ID</button>
+            <button class="tab-btn" onclick="showTab('branch', this)">🏦 Branch</button>
+            <button class="tab-btn" onclick="showTab('name', this)">  👱‍♀🧔 Name</button>
+
+        </div>
+
+
+        
+
+        <!-- Search Sections -->
+        <div class="search-container">
+            <!-- Terminal ID Search -->
+            <div class="tab-content active" id="terminal">
+                <input type="text" placeholder="Please Enter Terminal ID (Ex:kushans)" id="terminalInput">
+                <button class="action-btn" onclick="searchByTerminal()">Submit</button>
+                
+            </div>
+
+            <!-- Branch Search -->
+            <div class="tab-content" id="branch">
+                
+                <select id="branchSelect" onchange="searchByBranch()">
+                    <option value="">Please Select Branch Name</option>
+                </select>
+            </div>
+
+            <!-- Name Search -->
+            <div class="tab-content" id="name">
+                <input type="text" placeholder="Please Enter Name (Ex:Kushan)" id="nameInput">
+                <button class="action-btn" onclick="searchByName()">Submit</button>
+            </div>
+        </div>
+
+        <!-- Results Display -->
+        <div class="results-container" id="results"></div>
+
+        <!-- Results Display -->
+        <div class="results-container" id="results"></div>
+        <div style="text-align: center;">
+        <button class="action-btn" id="clearBtn" style="display:none;" onclick="clearSearch()">Re-Search</button><button class="main-page-btn" onclick="goToMainPage()">⬅️ Go Back Main Page</button>
+</div>
+
+    </div>
+
+    <script>
+        const sheetId = "1dUJQMfRkDrfxeaNaqSdNRHjQfKZ8Rhgx5qN3MTamuwE";
+        const apiKey = "AIzaSyBkqBMyGiEVmt6ozlejEnyuFskdIb32h_E";
+        const range = "Sheet1!A2:D";
+        
+
+        async function fetchSheetData() {
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?key=${apiKey}`;
+            const response = await fetch(url);
+            const data = await response.json();
+            return data.values;
+        }
+
+        async function searchByTerminal() {
+            const terminalId = document.getElementById('terminalInput').value;
+            const data = await fetchSheetData();
+            const result = data.find(row => row[0] === terminalId);
+            
+            displayResult(`
+                <div class="message-bubble">
+                    <div class="message-header">AFC BOT:</div>
+                    <div>👱‍♀🧔Name          : ${result[1]}</div>
+                    <div>🏦Branch          : ${result[2]}</div>
+                    <div>☎Telephone Number : ${result[3]}</div>
+                </div>
+            `);
+        }
+
+        async function searchByBranch() {
+            const branch = document.getElementById('branchSelect').value;
+            const data = await fetchSheetData();
+            const results = data.filter(row => row[2] === branch);
+            
+            let html = '';
+            results.forEach(row => {
+                html += `
+                    <div class="message-bubble">
+                        <div class="message-header">AFC BOT:</div>
+                        <div>👱‍♀🧔Name: ${row[1]}</div>
+                        <div>☎Telephone Number: ${row[3]}</div>
+                        <div>🖥Terminal ID: ${row[0]}</div>
+                    </div>
+                `;
+            });
+            displayResult(html);
+        }
+
+        async function searchByName() {
+            const name = document.getElementById('nameInput').value.toLowerCase();
+            const data = await fetchSheetData();
+            const results = data.filter(row => row[1].toLowerCase().includes(name));
+            
+            let html = '';
+            results.forEach(row => {
+                html += `
+                    <div class="message-bubble">
+                        <div class="message-header">AFC BOT:</div>
+                        <div>🏦Branch: ${row[2]}</div>
+                        <div>☎Telephone Number: ${row[3]}</div>
+                        <div🖥Terminal ID: ${row[0]}</div>
+                    </div>
+                `;
+            });
+            displayResult(html);
+        }
+
+        function displayResult(content) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = content || '<div class="message-bubble">Please try again</div>';
+            document.getElementById('clearBtn').style.display = 'block';
+        }
+
+
+        function clearSearch() {
+        document.getElementById('terminalInput').value = '';
+        document.getElementById('nameInput').value = '';
+        document.getElementById('branchSelect').value = '';
+        document.getElementById('results').innerHTML = '';
+        document.getElementById('clearBtn').style.display = 'none';
+        }
+
+    
+    function showTab(tabId, button) {
+        // Hide all tab contents
+        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+
+        // Remove active class from all buttons
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+
+        // Show selected tab and activate button
+        document.getElementById(tabId).classList.add('active');
+        button.classList.add('active');
+
+        // Clear previous search and results
+        clearSearchFields();
+        clearResults();
+    }
+
+    function clearSearchFields() {
+        document.getElementById('terminalInput').value = '';
+        document.getElementById('nameInput').value = '';
+        document.getElementById('branchSelect').selectedIndex = 0;
+    }
+
+    function clearResults() {
+        document.getElementById('results').innerHTML = '';
+    }
+</script>
+
+<script>       
+
+        // Initialize Branch dropdown
+        async function initBranches() {
+            const data = await fetchSheetData();
+            const branches = [...new Set(data.map(row => row[2]))];
+            const select = document.getElementById('branchSelect');
+            
+            branches.forEach(branch => {
+                const option = document.createElement('option');
+                option.value = branch;
+                option.textContent = branch;
+                select.appendChild(option);
+            });
+        }
+
+        // Initialize app
+        initBranches();
+</script>
+<script>
+    function goToMainPage() {
+        window.location.href = "Main_Page.html";
+    }
+</script>
+
+    <style>
+        /* WhatsApp-style UI */
+        .main-container {
+            max-width: 800px;
+            margin: 20px auto;
+            background: #fff;
+            border-radius: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .message-bubble {
+            background: #dcf8c6;
+            border-radius: 15px;
+            padding: 15px;
+            margin: 10px;
+            max-width: 80%;
+            align-self: flex-end;
+        }
+
+        .message-header {
+            color: #075e54;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .results-container {
+            height: 500px;
+            overflow-y: auto;
+            padding: 20px;
+            background: #ece5dd;
+        }
+
+        .action-btn {
+            background: #25d366;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 25px;
+            margin: 10px;
+            cursor: pointer;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 2px solid #ddd;
+            border-radius: 25px;
+        }
+
+        
+        #clearBtn {
+        margin-bottom: 20px;
+        }
+
+        .navigation {
+    text-align: center;
+    margin: 20px;
+}
+
+    .main-page-btn {
+        background: #128C7E;
+        color: white;
+        padding: 12px 25px;
+        border: none;
+        border-radius: 25px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background 0.3s ease;
+    }
+
+    .main-page-btn:hover {
+        background: #075e54;
+    }
+
+        
+    </style>
+
+<script src="script.js"></script>
+</body>
+</html>

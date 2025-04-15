@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PDF Chatbot</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #ece5dd;
+      margin: 0;
+      padding: 0;
+    }
+    .chat-container {
+      width: 400px;
+      margin: 50px auto;
+      background-color: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0px 0px 10px #ccc;
+      display: flex;
+      flex-direction: column;
+    }
+    .chat-box {
+      flex-grow: 1;
+      padding: 20px;
+      overflow-y: auto;
+      height: 400px;
+    }
+    .input-area {
+      display: flex;
+      padding: 10px;
+      border-top: 1px solid #ccc;
+    }
+    input {
+      flex-grow: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 20px;
+      background-color: #f0f0f0;
+      margin-right: 10px;
+    }
+    button {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 20px;
+      background-color: #25d366;
+      color: white;
+      cursor: pointer;
+    }
+    .message {
+      margin-bottom: 10px;
+      padding: 10px;
+      border-radius: 10px;
+      max-width: 80%;
+    }
+    .user {
+      background-color: #dcf8c6;
+      align-self: flex-end;
+    }
+    .bot {
+      background-color: #f1f0f0;
+      align-self: flex-start;
+    }
+    .back-button {
+      margin: 10px auto;
+      padding: 8px 20px;
+      background-color: #075e54;
+      color: white;
+      border-radius: 20px;
+      text-align: center;
+      width: fit-content;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-container">
+    <div class="chat-box" id="chatBox">
+      <div class="message bot">📄 මට PDF එකෙන් උදව් කරන්න පුළුවන්! ප්‍රශ්නයක් ඇසන්න 😃</div>
+    </div>
+    <div class="input-area">
+      <input type="text" id="userInput" placeholder="ඔබේ ප්‍රශ්නය මෙතැනින්..." />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+    <a href="Main_Page.html" class="back-button">⬅️ Back to Main Page</a>
+  </div>
+
+  <script>
+    async function sendMessage() {
+      const input = document.getElementById('userInput');
+      const chatBox = document.getElementById('chatBox');
+      const message = input.value;
+
+      if (!message.trim()) return;
+
+      const userMessage = document.createElement("div");
+      userMessage.className = "message user";
+      userMessage.innerText = message;
+      chatBox.appendChild(userMessage);
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      input.value = "";
+
+      const response = await fetch("http://127.0.0.1:5000/ask", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ question: message })
+      });
+
+      const data = await response.json();
+      const botMessage = document.createElement("div");
+      botMessage.className = "message bot";
+      botMessage.innerText = data.answer;
+      chatBox.appendChild(botMessage);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+  </script>
+</body>
+</html>
