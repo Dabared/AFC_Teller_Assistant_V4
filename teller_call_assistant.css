@@ -19,12 +19,18 @@ body {
     overflow: hidden;
 }
 
-.main-container {
-    height: 100vh;
-    width: 100vw;
+.chat-container {
+    width: 100%;
+    max-width: 500px;
+    height: 95vh;
+    margin: 10px auto;
+    background: #fff;
     display: flex;
     flex-direction: column;
-}
+    border-radius: 15px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    overflow: hidden;
+  }
 
 .header {
     background: var(--whatsapp-dark-green);
