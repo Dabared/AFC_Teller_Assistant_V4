@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>XIRR Calculator</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #022B40;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 40px auto;
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    label {
+      display: block;
+      margin-top: 15px;
+      font-weight: bold;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="date"],
+    input[type="file"] {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+
+    button {
+      margin-top: 15px;
+      padding: 12px 20px;
+      background: #08845f;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      width: 100%;
+      font-size: 16px;
+    }
+
+    button:hover {
+      background: #03402e;
+    }
+
+    .result {
+      margin-top: 20px;
+      font-size: 18px;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .error {
+      color: red;
+    }
+
+    .btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    @media (min-width: 600px) {
+      .btn-group {
+        flex-direction: row;
+        justify-content: space-between;
+      }
+      button {
+        width: auto;
+        flex: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>XIRR Calculator</h2>
+
+    <label>Investment Date</label>
+    <input type="date" id="investmentDate" />
+
+    <label>Investment Amount (negative if outflow)</label>
+    <input type="number" id="investmentAmount" step="any" />
+
+    <label>Final Receipt Date</label>
+    <input type="date" id="finalDate" />
+
+    <label>Final Receipt Amount</label>
+    <input type="number" id="finalAmount" step="any" />
+
+    <label>Upload Transaction Text File</label>
+    <input type="file" id="fileInput" accept=".txt" />
+
+    <div class="btn-group">
+      <button onclick="calculateXIRR()">Calculate XIRR</button>
+      <button onclick="downloadPDF()">Download PDF</button>
+      <button onclick="clearForm()">Clear</button>
+      <button onclick="cancelUpload()">Cancel Upload</button>
+      <button onclick="location.reload()">Back to Main Page</button>
+    </div>
+
+    <div class="result" id="resultBox"></div>
+  </div>
+
+  <script>
+    let globalCashFlows = [];
+    let globalXIRR = null;
+
+    function parseDate(dateStr) {
+      return new Date(dateStr);
+    }
+
+    function daysBetween(date1, date2) {
+      return (date1 - date2) / (1000 * 60 * 60 * 24);
+    }
+
+    function xirr(transactions) {
+      const guess = 0.1;
+      const maxIterations = 100;
+      const tolerance = 1e-6;
+      const xnpv = rate => transactions.reduce((sum, t) => {
+        const dt = daysBetween(t.date, transactions[0].date);
+        return sum + t.amount / Math.pow(1 + rate, dt / 365);
+      }, 0);
+
+      let rate = guess;
+      for (let i = 0; i < maxIterations; i++) {
+        const f = xnpv(rate);
+        const f1 = (xnpv(rate + tolerance) - f) / tolerance;
+        const newRate = rate - f / f1;
+        if (Math.abs(newRate - rate) < tolerance) return newRate;
+        rate = newRate;
+      }
+      return null;
+    }
+
+    function calculateXIRR() {
+      const investmentDate = document.getElementById("investmentDate").value;
+      const investmentAmount = parseFloat(document.getElementById("investmentAmount").value);
+      const finalDate = document.getElementById("finalDate").value;
+      const finalAmount = parseFloat(document.getElementById("finalAmount").value);
+      const file = document.getElementById("fileInput").files[0];
+      const resultBox = document.getElementById("resultBox");
+
+      resultBox.innerHTML = "Processing...";
+      globalCashFlows = [];
+      globalXIRR = null;
+
+      if (!investmentDate || !finalDate || isNaN(investmentAmount) || isNaN(finalAmount) || !file) {
+        resultBox.innerHTML = '<span class="error">Please fill all fields and upload a valid text file.</span>';
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const content = e.target.result;
+        const lines = content.split('\n');
+        const pattern = /^\s*\d{2}\/\d{2}\/\d{4}\s*\|/;
+        const trxWhitelist = new Set([ "ADE", "ADV", "AVT", "BDA", "BDR", "BDW", "CAC", "CAL", "CAM", "CAP", "CCB", "CCG", "CEX", "CHA", "CHR", "CLA", "COL",
+        "CRB", "CRI", "CRM", "CRP", "CRT", "CRV", "CSA", "CSM", "DCH", "DLC", "DLD", "DPL", "DSL", "DTS", "EAN", "ECA", "ERA",
+        "ERC", "ERR", "EXT", "FDL", "GLD", "GSD", "GST", "HAC", "HYF", "INB", "INC", "INR", "INS", "LCB", "LCC", "LCI", "LCR",
+        "LEC", "LEG", "LGL", "LID", "LIE", "LNY", "LOD", "LOR", "LRD", "LRS", "LTD", "MTA", "NBT", "NOI", "OCH", "ODA", "ODB",
+        "ODJ", "OIL", "OIT", "OPR", "ORC", "OST", "OVP", "OVR", "PCH", "PLL", "PLS", "POL", "PRE", "PRO", "PRP", "PSR", "PTC",
+        "RCN", "REC", "RED", "REF", "REG", "REO", "REP", "REV", "RMC", "RMV",  "RPO", "RST", "SBT", "SCG", "SCH", "SCR",
+        "SDI", "SIF", "SOC", "SOF", "SOP", "SOS", "SRI", "SRT", "STA", "STC", "STE", "STL", "STO", "STR", "SUC", "SUL", "SUN",
+        "SUS", "SWH", "SZI", "TCC", "TFL", "TFR", "THC", "TPC", "TRA", "TRL", "TRY", "TSC", "TST", "TTI", "TTT", "TWC", "TWS",
+        "UPN", "UPS", "VAA", "VAL", "VAT", "VFI", "VLA", "VLI", "VLL", "VTC", "YBR", "YFC", "CLO", "MLP", "RMB", "PCC","R"]);
+
+        for (let line of lines) {
+          if (pattern.test(line)) {
+            const parts = line.split('|').map(p => p.trim());
+            const dateStr = parts[0];
+            const trx = parts[2];
+            const debitStr = parts[7] || "0";
+            const creditStr = parts[8] || "0";
+
+            if (!trxWhitelist.has(trx)) continue;
+
+            const debit = parseFloat(debitStr.replace(/,/g, '')) || 0;
+            const credit = parseFloat(creditStr.replace(/,/g, '')) || 0;
+            const date = parseDate(dateStr.split('/').reverse().join('-'));
+
+            let amount = 0;
+            if (debit > 0.1) amount = -debit;
+            else if (credit > 0.1) amount = credit;
+
+            if (amount !== 0) globalCashFlows.push({ date, amount });
+          }
+        }
+
+        globalCashFlows.push({ date: parseDate(investmentDate), amount: investmentAmount });
+        globalCashFlows.push({ date: parseDate(finalDate), amount: finalAmount });
+
+        globalCashFlows.sort((a, b) => a.date - b.date);
+
+        globalXIRR = xirr(globalCashFlows);
+        if (globalXIRR !== null) {
+          resultBox.innerHTML = `✅ XIRR: ${(globalXIRR * 100).toFixed(4)}%`;
+        } else {
+          resultBox.innerHTML = '<span class="error">❌ XIRR Calculation failed. Please check your data.</span>';
+        }
+      };
+
+      reader.onerror = function () {
+        resultBox.innerHTML = '<span class="error">❌ Error reading file.</span>';
+      };
+
+      reader.readAsText(file);
+    }
+
+    function clearForm() {
+      document.getElementById("investmentDate").value = "";
+      document.getElementById("investmentAmount").value = "";
+      document.getElementById("finalDate").value = "";
+      document.getElementById("finalAmount").value = "";
+      document.getElementById("resultBox").innerHTML = "";
+    }
+
+    function cancelUpload() {
+      document.getElementById("fileInput").value = "";
+    }
+
+    function downloadPDF() {
+      if (!globalCashFlows.length || globalXIRR === null) {
+        alert("Please calculate XIRR first.");
+        return;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const dateStr = new Date().toLocaleString();
+
+      // Watermark
+      doc.setTextColor(200);
+      doc.setFontSize(40);
+      doc.text("AFC-Finance", 35, 150, { angle: 45 });
+
+      // Title
+      doc.setFontSize(16);
+      doc.setTextColor(0);
+      doc.text("XIRR Report", 14, 20);
+      doc.setFontSize(10);
+      doc.text(`Generated: ${dateStr}`, 14, 28);
+
+      // Table
+      const rows = globalCashFlows.map(cf => [
+        cf.date.toISOString().split('T')[0],
+        cf.amount.toFixed(2)
+      ]);
+
+      doc.autoTable({
+        head: [["Date", "Cash Flow"]],
+        body: rows,
+        startY: 35
+      });
+
+      // XIRR Result
+      doc.setFontSize(12);
+      doc.text(`XIRR: ${(globalXIRR * 100).toFixed(4)}%`, 14, doc.autoTable.previous.finalY + 15);
+
+      doc.save("XIRR_Report.pdf");
+    }
+  </script>
+</body>
+</html>
